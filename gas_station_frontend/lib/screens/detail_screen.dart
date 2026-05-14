@@ -65,13 +65,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
                     onPressed: () async {
-  await DBHelper().addFavorite(
-    widget.spbu.id,
-    widget.spbu.nama,
-    widget.spbu.fasilitas,
-  );
+  // Sekarang kita lempar seluruh objek widget.spbu
+  await DBHelper().addFavorite(widget.spbu); 
   
-  if (!mounted) return; // Keamanan agar tidak context error
+  if (!mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text("${widget.spbu.nama} berhasil jadi favorit!"),
