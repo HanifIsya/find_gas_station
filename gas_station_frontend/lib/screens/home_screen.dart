@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart'; // Import package lokasi
 import '../models/spbu.dart';
 import '../services/api_service.dart';
 import '../widgets/spbu_item.dart';
@@ -30,13 +31,58 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // 1. Saat layar dibuka, langsung minta lokasi user terlebih dahulu
+    _getUserLocation();
   }
 
-  // Fungsi untuk mengambil data dari API
-  Future<void> _loadData() async {
+  // Fungsi untuk meminta izin dan mengambil koordinat GPS HP
+  Future<void> _getUserLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Cek apakah GPS di HP nyala
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        _errorMessage = "Harap aktifkan GPS / Lokasi di HP Anda.";
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // Cek izin aplikasi untuk mengakses lokasi
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          _errorMessage = "Izin lokasi ditolak oleh pengguna.";
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        _errorMessage = "Izin lokasi diblokir permanen. Buka pengaturan HP.";
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // Jika izin diberikan, ambil koordinat saat ini
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+
+    // 2. Setelah dapat koordinat, baru ambil data dari Laravel
+    _loadData(position.latitude, position.longitude);
+  }
+
+  // Fungsi untuk mengambil data dari API berdasarkan lokasi
+  Future<void> _loadData(double lat, double lng) async {
     try {
-      final data = await _apiService.fetchSpbu();
+      final data = await _apiService.fetchSpbu(lat, lng);
       setState(() {
         _allSpbu = data;
         _filteredSpbu = data; // Awalnya tampilkan semua
@@ -50,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Fungsi Logika Filter
+  // Fungsi Logika Filter (Bisa kamu modifikasi untuk filter jarak/fasilitas nanti)
   void _applyFilter(String newValue) {
     setState(() {
       _selectedBbm = newValue;
@@ -86,9 +132,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator()) // Loading muter-muter
           : _errorMessage.isNotEmpty
-              ? Center(child: Text("Error: $_errorMessage"))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Text(
+                      "Error: $_errorMessage\n\nPastikan Laravel jalan, IP sesuai, dan GPS nyala.",
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
               : Column(
                   children: [
                     // --- BAGIAN FILTER UI ---
