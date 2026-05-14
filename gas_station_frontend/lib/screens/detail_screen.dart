@@ -64,9 +64,21 @@ class _DetailScreenState extends State<DetailScreen> {
                   Text("Operasional: ${widget.spbu.jamOperasional}"),
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      // Nanti tambahkan logika Simpan Favorit (Sqflite) di sini
-                    },
+                    onPressed: () async {
+  await DBHelper().addFavorite(
+    widget.spbu.id,
+    widget.spbu.nama,
+    widget.spbu.fasilitas,
+  );
+  
+  if (!mounted) return; // Keamanan agar tidak context error
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text("${widget.spbu.nama} berhasil jadi favorit!"),
+      backgroundColor: Colors.green,
+    ),
+  );
+},
                     icon: const Icon(Icons.favorite),
                     label: const Text("Simpan ke Favorit"),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
